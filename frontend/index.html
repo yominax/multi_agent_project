@@ -248,6 +248,7 @@
         <form id="form">
             <textarea id="input" placeholder="Pose une question ou décris une tâche à confier à l'équipe d'agents..." required></textarea>
             <button type="submit" id="send">Envoyer</button>
+            <button type="button" id="export">Exporter</button>
         </form>
     </div>
 </div>
@@ -262,8 +263,10 @@
     const backendStatusEl = document.getElementById("backendStatus");
     const toggleTraceEl = document.getElementById("toggleTrace");
     const modeSelectEl = document.getElementById("modeSelect");
+    const exportEl = document.getElementById("export");
 
     let showTrace = false;
+    const conversation = [];
 
     toggleTraceEl.addEventListener("change", () => {
         showTrace = toggleTraceEl.checked;
@@ -339,6 +342,13 @@
 
         messagesEl.appendChild(wrapper);
         messagesEl.scrollTop = messagesEl.scrollHeight;
+
+        conversation.push({
+            role,
+            content,
+            trace: trace || null,
+            timestamp: new Date().toISOString(),
+        });
     }
 
     formEl.addEventListener("submit", async (event) => {
@@ -385,6 +395,26 @@
         } finally {
             sendEl.disabled = false;
         }
+    });
+
+    exportEl.addEventListener("click", () => {
+        if (!conversation.length) {
+            appendMessage("assistant", "Aucune conversation à exporter.", null);
+            return;
+        }
+        const payload = {
+            exported_at: new Date().toISOString(),
+            conversation,
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "conversation-multi-agent.json";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     });
 
     checkBackend();
