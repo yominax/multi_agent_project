@@ -39,6 +39,7 @@ class Message(BaseModel):
 
 class ChatRequest(BaseModel):
     messages: list[Message]
+    mode: str | None = "multi"
 
 
 class ChatResponse(BaseModel):
@@ -91,9 +92,17 @@ def chat(request: ChatRequest):
     if not request.messages:
         raise HTTPException(status_code=400, detail="messages requis")
 
+    mode = (request.mode or "multi").lower()
+
     trace: list[dict] = []
 
     user_message = request.messages[-1].content
+
+    if mode == "single":
+        prompt = "Tu es un assistant unique. Réponds directement à la demande de l'utilisateur, en français, de manière claire et structurée."
+        output = call_agent("single", prompt, [], user_message)
+        trace.append({"agent": "single", "output": output})
+        return ChatResponse(reply=output, trace=trace)
 
     planner_prompt = "Tu es un planificateur. Tu décomposes la demande en étapes claires pour une équipe d'agents. Réponds en français, en quelques phrases structurées."
     planner_output = call_agent("planner", planner_prompt, [], user_message)

@@ -234,6 +234,13 @@
                     <input type="checkbox" id="toggleTrace">
                     <span>Afficher les agents</span>
                 </label>
+                <label class="toggle">
+                    <span>Mode</span>
+                    <select id="modeSelect" style="background: transparent; color: #e5e7eb; border-radius: 999px; border: 1px solid rgba(75,85,99,0.9); padding: 2px 8px; font-size: 11px;">
+                        <option value="multi">Multi-agent</option>
+                        <option value="single">Agent unique</option>
+                    </select>
+                </label>
             </div>
             <div>Backend: <span id="backendStatus">?</span></div>
         </div>
@@ -254,6 +261,7 @@
     const statusEl = document.getElementById("status");
     const backendStatusEl = document.getElementById("backendStatus");
     const toggleTraceEl = document.getElementById("toggleTrace");
+    const modeSelectEl = document.getElementById("modeSelect");
 
     let showTrace = false;
 
@@ -353,6 +361,7 @@
                 },
                 body: JSON.stringify({
                     messages: [{ role: "user", content }],
+                    mode: modeSelectEl.value || "multi",
                 }),
             });
 
