@@ -62,8 +62,23 @@ def call_agent(name: str, system_prompt: str, history: list[dict], user_content:
         ],
     )
 
-    content = response.output[0].content[0].text.value
-    return content
+    text = getattr(response, "output_text", None)
+    if isinstance(text, str) and text.strip():
+        return text.strip()
+
+    chunks: list[str] = []
+    output = getattr(response, "output", None) or []
+    for item in output:
+        for part in getattr(item, "content", None) or []:
+            t = getattr(part, "text", None)
+            if isinstance(t, str):
+                if t.strip():
+                    chunks.append(t)
+                continue
+            v = getattr(t, "value", None)
+            if isinstance(v, str) and v.strip():
+                chunks.append(v)
+    return "\n".join(chunks).strip()
 
 
 @app.get("/")
