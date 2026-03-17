@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Multi-agent Chat</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: radial-gradient(circle at top left, #18181b, #020617);
+            color: #f9fafb;
+            display: flex;
+            justify-content: center;
+            align-items: stretch;
+            min-height: 100vh;
+        }
+        .app {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-width: 960px;
+            padding: 24px;
+            box-sizing: border-box;
+        }
+        .card {
+            background: rgba(15, 23, 42, 0.92);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 24px 80px rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+        .title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+        .subtitle {
+            font-size: 13px;
+            color: #cbd5f5;
+            opacity: 0.85;
+        }
+        .badge {
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: linear-gradient(to right, #22c55e22, #14b8a622);
+            border: 1px solid rgba(74, 222, 128, 0.4);
+            color: #bbf7d0;
+            white-space: nowrap;
+        }
+        .messages {
+            background: rgba(15, 23, 42, 0.9);
+            border-radius: 12px;
+            padding: 12px;
+            border: 1px solid rgba(51, 65, 85, 0.9);
+            max-height: 360px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .msg {
+            padding: 10px 12px;
+            border-radius: 10px;
+            font-size: 14px;
+            line-height: 1.45;
+            max-width: 100%;
+            white-space: pre-wrap;
+        }
+        .msg-user {
+            align-self: flex-end;
+            background: linear-gradient(to right, #4f46e5, #6366f1);
+            color: #eef2ff;
+        }
+        .msg-assistant {
+            align-self: flex-start;
+            background: #020617;
+            border: 1px solid #1e293b;
+        }
+        .msg-meta {
+            font-size: 11px;
+            color: #9ca3af;
+            margin-bottom: 4px;
+        }
+        .trace {
+            border-top: 1px dashed rgba(75, 85, 99, 0.7);
+            padding-top: 10px;
+            margin-top: 4px;
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .trace.visible {
+            display: flex;
+        }
+        .trace-item {
+            font-size: 12px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(31, 41, 55, 0.9);
+        }
+        .trace-label {
+            font-size: 11px;
+            font-weight: 500;
+            color: #a5b4fc;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        form {
+            display: flex;
+            gap: 10px;
+            margin-top: 4px;
+        }
+        textarea {
+            flex: 1;
+            resize: none;
+            min-height: 56px;
+            max-height: 120px;
+            border-radius: 12px;
+            border: 1px solid rgba(75, 85, 99, 0.9);
+            background: rgba(15, 23, 42, 0.92);
+            color: #e5e7eb;
+            padding: 10px 12px;
+            font-size: 14px;
+            outline: none;
+        }
+        textarea:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.4);
+        }
+        button {
+            border: none;
+            border-radius: 999px;
+            padding: 0 18px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(to right, #22c55e, #16a34a);
+            color: #ecfdf5;
+            white-space: nowrap;
+            transition: filter 120ms ease, transform 120ms ease, box-shadow 120ms ease;
+            box-shadow: 0 12px 30px rgba(22, 163, 74, 0.45);
+        }
+        button:hover {
+            filter: brightness(1.06);
+            transform: translateY(-1px);
+            box-shadow: 0 18px 40px rgba(22, 163, 74, 0.65);
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: default;
+            transform: none;
+            box-shadow: none;
+        }
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: #9ca3af;
+        }
+        .toolbar-left {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .pill {
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(75, 85, 99, 0.9);
+            font-size: 11px;
+        }
+        .toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+        }
+        .toggle input {
+            margin: 0;
+        }
+        @media (max-width: 640px) {
+            .card {
+                padding: 16px;
+            }
+            .title {
+                font-size: 18px;
+            }
+            .subtitle {
+                font-size: 12px;
+            }
+            form {
+                flex-direction: column;
+            }
+            button {
+                width: 100%;
+                padding: 10px 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+    <div class="card">
+        <div class="header">
+            <div>
+                <div class="title">Orchestrateur multi‑agent</div>
+                <div class="subtitle">Planner → Analyste → Synthèse, avec OpenAI.</div>
+            </div>
+            <div class="badge">OPENAI · multi‑agent</div>
+        </div>
+
+        <div class="messages" id="messages"></div>
+
+        <div class="toolbar">
+            <div class="toolbar-left">
+                <div class="pill" id="status">Prêt</div>
+                <label class="toggle">
+                    <input type="checkbox" id="toggleTrace">
+                    <span>Afficher les agents</span>
+                </label>
+            </div>
+            <div>Backend: <span id="backendStatus">?</span></div>
+        </div>
+
+        <form id="form">
+            <textarea id="input" placeholder="Pose une question ou décris une tâche à confier à l'équipe d'agents..." required></textarea>
+            <button type="submit" id="send">Envoyer</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    const apiBase = window.location.origin.replace(/\/+$/, "");
+    const messagesEl = document.getElementById("messages");
+    const formEl = document.getElementById("form");
+    const inputEl = document.getElementById("input");
+    const sendEl = document.getElementById("send");
+    const statusEl = document.getElementById("status");
+    const backendStatusEl = document.getElementById("backendStatus");
+    const toggleTraceEl = document.getElementById("toggleTrace");
+
+    let showTrace = false;
+
+    toggleTraceEl.addEventListener("change", () => {
+        showTrace = toggleTraceEl.checked;
+        const trace = document.querySelectorAll(".trace");
+        trace.forEach(t => {
+            if (showTrace) {
+                t.classList.add("visible");
+            } else {
+                t.classList.remove("visible");
+            }
+        });
+    });
+
+    async function checkBackend() {
+        try {
+            const res = await fetch(apiBase + "/");
+            if (!res.ok) {
+                backendStatusEl.textContent = "erreur";
+                backendStatusEl.style.color = "#f97316";
+                return;
+            }
+            const data = await res.json();
+            if (data && data.status === "ok") {
+                backendStatusEl.textContent = "en ligne";
+                backendStatusEl.style.color = "#4ade80";
+            } else {
+                backendStatusEl.textContent = "inconnu";
+                backendStatusEl.style.color = "#f97316";
+            }
+        } catch (e) {
+            backendStatusEl.textContent = "hors ligne";
+            backendStatusEl.style.color = "#f97316";
+        }
+    }
+
+    function appendMessage(role, content, trace) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "msg " + (role === "user" ? "msg-user" : "msg-assistant");
+
+        if (role !== "user" && trace && Array.isArray(trace) && trace.length > 0) {
+            const container = document.createElement("div");
+            const mainText = document.createElement("div");
+            mainText.textContent = content;
+            container.appendChild(mainText);
+
+            const traceBlock = document.createElement("div");
+            traceBlock.className = "trace";
+            if (showTrace) {
+                traceBlock.classList.add("visible");
+            }
+
+            trace.forEach(item => {
+                const itemEl = document.createElement("div");
+                itemEl.className = "trace-item";
+
+                const label = document.createElement("div");
+                label.className = "trace-label";
+                label.textContent = item.agent;
+
+                const text = document.createElement("div");
+                text.textContent = item.output;
+
+                itemEl.appendChild(label);
+                itemEl.appendChild(text);
+                traceBlock.appendChild(itemEl);
+            });
+
+            container.appendChild(traceBlock);
+            wrapper.appendChild(container);
+        } else {
+            wrapper.textContent = content;
+        }
+
+        messagesEl.appendChild(wrapper);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    formEl.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const content = inputEl.value.trim();
+        if (!content) {
+            return;
+        }
+
+        appendMessage("user", content);
+        inputEl.value = "";
+        statusEl.textContent = "Appel multi‑agent en cours…";
+        sendEl.disabled = true;
+
+        try {
+            const res = await fetch(apiBase + "/api/chat", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    messages: [{ role: "user", content }],
+                }),
+            });
+
+            if (!res.ok) {
+                const text = await res.text();
+                appendMessage("assistant", "Erreur côté API: " + text);
+                statusEl.textContent = "Erreur";
+                statusEl.style.color = "#f97316";
+                sendEl.disabled = false;
+                return;
+            }
+
+            const data = await res.json();
+            appendMessage("assistant", data.reply, data.trace);
+            statusEl.textContent = "Prêt";
+            statusEl.style.color = "#9ca3af";
+        } catch (e) {
+            appendMessage("assistant", "Impossible de contacter le backend.");
+            statusEl.textContent = "Erreur réseau";
+            statusEl.style.color = "#f97316";
+        } finally {
+            sendEl.disabled = false;
+        }
+    });
+
+    checkBackend();
+</script>
+</body>
+</html>
+

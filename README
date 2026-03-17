@@ -1,0 +1,34 @@
+Projet multi-agent (FastAPI + OpenAI)
+
+Ce dépôt fournit un backend FastAPI avec un orchestrateur multi‑agent (planner → researcher → synthesizer) et une interface web minimaliste pour tester via navigateur.
+
+Pré-requis
+
+- Python 3.10+ 
+- Variable d’environnement OPENAI_API_KEY définie (ou fichier .env)
+
+Installation
+
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+
+Configuration (PowerShell)
+
+$env:OPENAI_API_KEY="votre_cle"
+
+Lancement
+
+python run_backend.py
+
+Accès
+
+- http://localhost:8000/         (ping)
+- http://localhost:8000/web      (interface web)
+
+API
+
+- POST /api/chat
+  - input: { "messages": [ { "role": "user", "content": "..." } ] }
+  - output: { "reply": "...", "trace": [ { "agent": "...", "output": "..." } ] }
+
