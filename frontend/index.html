@@ -194,6 +194,30 @@
         .toggle input {
             margin: 0;
         }
+        .rag-panel {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed rgba(75, 85, 99, 0.7);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            font-size: 12px;
+            color: #9ca3af;
+        }
+        .rag-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .rag-row textarea {
+            min-height: 48px;
+            max-height: 96px;
+            font-size: 12px;
+        }
+        .rag-list {
+            font-size: 11px;
+            color: #9ca3af;
+        }
         @media (max-width: 640px) {
             .card {
                 padding: 16px;
@@ -241,6 +265,10 @@
                         <option value="single">Agent unique</option>
                     </select>
                 </label>
+                <label class="toggle">
+                    <input type="checkbox" id="toggleRag">
+                    <span>Utiliser RAG</span>
+                </label>
             </div>
             <div>Backend: <span id="backendStatus">?</span></div>
         </div>
@@ -250,6 +278,19 @@
             <button type="submit" id="send">Envoyer</button>
             <button type="button" id="export">Exporter</button>
         </form>
+
+        <div class="rag-panel">
+            <div class="rag-row">
+                <span>Sources RAG</span>
+                <span id="ragCount"></span>
+            </div>
+            <div class="rag-row">
+                <input type="text" id="ragTitle" placeholder="Titre du document" style="flex: 0 0 40%; border-radius: 8px; border: 1px solid rgba(75,85,99,0.9); background: rgba(15,23,42,0.92); color: #e5e7eb; padding: 6px 8px; font-size: 12px;">
+                <textarea id="ragContent" placeholder="Coller ici le contenu d'un document (texte brut) pour l'ajouter au RAG." style="flex: 1;"></textarea>
+                <button type="button" id="ragAdd" style="padding: 0 12px;">Ajouter</button>
+            </div>
+            <div class="rag-list" id="ragList"></div>
+        </div>
     </div>
 </div>
 
@@ -264,6 +305,12 @@
     const toggleTraceEl = document.getElementById("toggleTrace");
     const modeSelectEl = document.getElementById("modeSelect");
     const exportEl = document.getElementById("export");
+    const toggleRagEl = document.getElementById("toggleRag");
+    const ragTitleEl = document.getElementById("ragTitle");
+    const ragContentEl = document.getElementById("ragContent");
+    const ragAddEl = document.getElementById("ragAdd");
+    const ragListEl = document.getElementById("ragList");
+    const ragCountEl = document.getElementById("ragCount");
 
     let showTrace = false;
     const conversation = [];
@@ -292,6 +339,9 @@
             if (data && data.status === "ok") {
                 backendStatusEl.textContent = "en ligne";
                 backendStatusEl.style.color = "#4ade80";
+                if (typeof data.rag_documents === "number") {
+                    ragCountEl.textContent = "(" + data.rag_documents + " documents indexés)";
+                }
             } else {
                 backendStatusEl.textContent = "inconnu";
                 backendStatusEl.style.color = "#f97316";
@@ -372,6 +422,7 @@
                 body: JSON.stringify({
                     messages: [{ role: "user", content }],
                     mode: modeSelectEl.value || "multi",
+                    use_rag: !!toggleRagEl.checked,
                 }),
             });
 
@@ -417,7 +468,61 @@
         URL.revokeObjectURL(url);
     });
 
+    async function refreshRagList() {
+        try {
+            const res = await fetch(apiBase + "/api/rag/documents");
+            if (!res.ok) {
+                return;
+            }
+            const docs = await res.json();
+            if (!Array.isArray(docs)) {
+                return;
+            }
+            ragListEl.textContent = docs.length
+                ? docs
+                      .map((d) => d.title + " (" + d.tokens + " tokens)")
+                      .join(" · ")
+                : "Aucun document pour l'instant.";
+            ragCountEl.textContent = "(" + docs.length + " documents indexés)";
+        } catch (e) {
+        }
+    }
+
+    ragAddEl.addEventListener("click", async () => {
+        const title = (ragTitleEl.value || "").trim() || "Document";
+        const content = (ragContentEl.value || "").trim();
+        if (!content) {
+            appendMessage("assistant", "Contenu vide, rien à ajouter au RAG.", null);
+            return;
+        }
+        ragAddEl.disabled = true;
+        ragAddEl.textContent = "Ajout...";
+        try {
+            const res = await fetch(apiBase + "/api/rag/documents", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ title, content }),
+            });
+            if (!res.ok) {
+                const txt = await res.text();
+                appendMessage("assistant", "Erreur lors de l'ajout au RAG: " + txt, null);
+                return;
+            }
+            await refreshRagList();
+            ragContentEl.value = "";
+            appendMessage("assistant", "Document ajouté au RAG.", null);
+        } catch (e) {
+            appendMessage("assistant", "Erreur réseau lors de l'ajout au RAG.", null);
+        } finally {
+            ragAddEl.disabled = false;
+            ragAddEl.textContent = "Ajouter";
+        }
+    });
+
     checkBackend();
+    refreshRagList();
 </script>
 </body>
 </html>
