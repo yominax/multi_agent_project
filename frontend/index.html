@@ -178,6 +178,20 @@
             gap: 10px;
             align-items: center;
         }
+        .key-input {
+            width: 160px;
+            border-radius: 999px;
+            border: 1px solid rgba(75, 85, 99, 0.9);
+            background: rgba(15, 23, 42, 0.92);
+            color: #e5e7eb;
+            padding: 2px 10px;
+            font-size: 11px;
+            outline: none;
+        }
+        .key-input:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.35);
+        }
         .pill {
             padding: 2px 8px;
             border-radius: 999px;
@@ -269,6 +283,7 @@
                     <input type="checkbox" id="toggleRag">
                     <span>Utiliser RAG</span>
                 </label>
+                <input type="password" id="appKey" class="key-input" placeholder="Clé d’accès (optionnel)">
             </div>
             <div>Backend: <span id="backendStatus">?</span></div>
         </div>
@@ -311,9 +326,28 @@
     const ragAddEl = document.getElementById("ragAdd");
     const ragListEl = document.getElementById("ragList");
     const ragCountEl = document.getElementById("ragCount");
+    const appKeyEl = document.getElementById("appKey");
 
     let showTrace = false;
     const conversation = [];
+
+    const storedKey = localStorage.getItem("app_access_key");
+    if (storedKey) {
+        appKeyEl.value = storedKey;
+    }
+    appKeyEl.addEventListener("change", () => {
+        const v = (appKeyEl.value || "").trim();
+        if (v) {
+            localStorage.setItem("app_access_key", v);
+        } else {
+            localStorage.removeItem("app_access_key");
+        }
+    });
+
+    function authHeaders() {
+        const k = (appKeyEl.value || "").trim();
+        return k ? { "X-APP-KEY": k } : {};
+    }
 
     toggleTraceEl.addEventListener("change", () => {
         showTrace = toggleTraceEl.checked;
@@ -329,7 +363,7 @@
 
     async function checkBackend() {
         try {
-            const res = await fetch(apiBase + "/");
+            const res = await fetch(apiBase + "/", { headers: authHeaders() });
             if (!res.ok) {
                 backendStatusEl.textContent = "erreur";
                 backendStatusEl.style.color = "#f97316";
@@ -418,6 +452,7 @@
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
+                    ...authHeaders(),
                 },
                 body: JSON.stringify({
                     messages: [{ role: "user", content }],
@@ -470,7 +505,7 @@
 
     async function refreshRagList() {
         try {
-            const res = await fetch(apiBase + "/api/rag/documents");
+            const res = await fetch(apiBase + "/api/rag/documents", { headers: authHeaders() });
             if (!res.ok) {
                 return;
             }
@@ -502,6 +537,7 @@
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
+                    ...authHeaders(),
                 },
                 body: JSON.stringify({ title, content }),
             });

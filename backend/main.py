@@ -1,7 +1,8 @@
 import os
 import json
+import secrets
 from typing import Any
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -33,6 +34,8 @@ if not api_key:
 
 
 client = OpenAI(api_key=api_key)
+
+app_access_key = os.getenv("APP_ACCESS_KEY") or ""
 
 
 rag_store_path = os.path.join(os.path.dirname(__file__), "rag_store.json")
@@ -159,9 +162,17 @@ def root():
     docs = load_rag_store()
     return {"status": "ok", "rag_documents": len(docs)}
 
+def require_app_key(req: Request) -> None:
+    if not app_access_key:
+        return
+    provided = req.headers.get("x-app-key") or ""
+    if not secrets.compare_digest(provided, app_access_key):
+        raise HTTPException(status_code=401, detail="unauthorized")
+
 
 @app.post("/api/chat", response_model=ChatResponse)
-def chat(request: ChatRequest):
+def chat(request: ChatRequest, req: Request):
+    require_app_key(req)
     if not request.messages:
         raise HTTPException(status_code=400, detail="messages requis")
 
@@ -221,7 +232,8 @@ def chat(request: ChatRequest):
 
 
 @app.post("/api/rag/documents", response_model=RagDocumentOut)
-def add_rag_document(doc: RagDocumentIn):
+def add_rag_document(doc: RagDocumentIn, req: Request):
+    require_app_key(req)
     if not doc.title.strip():
         raise HTTPException(status_code=400, detail="title requis")
     if not doc.content.strip():
@@ -242,7 +254,8 @@ def add_rag_document(doc: RagDocumentIn):
 
 
 @app.get("/api/rag/documents", response_model=list[RagDocumentOut])
-def list_rag_documents():
+def list_rag_documents(req: Request):
+    require_app_key(req)
     store = load_rag_store()
     result: list[RagDocumentOut] = []
     for d in store:
